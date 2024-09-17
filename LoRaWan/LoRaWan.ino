@@ -9,6 +9,8 @@
 #define VBAT_Read 1 // Pin für die Battery
 #define	ADC_Ctrl 37
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
+#define RXD2 48
+#define TXD2 47
 
 uint32_t license[4] = {0x9856AD47, 0x625548C6, 0x98E9ABF8, 0xE05B1ED5};
 
@@ -151,6 +153,18 @@ static void prepareTxFrame(uint8_t port) {
   if(batteryVoltage < BATTERY_THRESHOLD){
     esp_deep_sleep_start();
   }
+
+  // Send "GetTemperature!" command to the RS485 device via UART1
+  Serial1.print("GetTemperature!000000\r\n");  // Send ASCII command to the RS485 device (UART1)
+  // Wait for a response from the RS485 device
+  delay(100);  // Adjust delay based on your RS485 device's response time
+  // Check if the RS485 device has sent back a response
+  if (Serial1.available()) {
+    String receivedData = Serial1.readStringUntil('\n');  // Read response until newline
+    Serial.println("Received from RS485: " + receivedData);  // Output to Debug Serial Monitor (UART0)
+  }
+  // Small delay before the next request
+  delay(1000);
   
   appDataSize = 16;
 
@@ -262,9 +276,16 @@ uint16_t readBatteryVoltage() {
 }
 
 void setup() {
+  // Initialize UART1 (TX = GPIO17, RX = GPIO16) for RS485 communication
+  Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);  // RS485 communication on UART1
   Serial.begin(115200);
   VextON();
   delay(100);
+
+  // Print initial debug message to Serial Monitor (UART0)
+  Serial.println("ESP32 RS485 communication started...");
+  Serial.println("Serial Txd is on pin: "+String(TXD2));
+  Serial.println("Serial Rxd is on pin: "+String(RXD2));
 
 
   pinMode(ADC_Ctrl,OUTPUT);
