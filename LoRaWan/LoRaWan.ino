@@ -34,7 +34,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /*the application data transmission duty cycle.  value in [ms].*/
-uint32_t appTxDutyCycle = 5000;
+uint32_t appTxDutyCycle = 10000;
 
 /*OTAA or ABP*/
 bool overTheAirActivation = true;
@@ -151,14 +151,28 @@ static void prepareTxFrame(uint8_t port) {
   if(batteryVoltage < BATTERY_THRESHOLD){
     esp_deep_sleep_start();
   }
+  
+  appDataSize = 16;
 
-  appDataSize = 6;
-  appData[0] = int_moisture >> 8;
-  appData[1] = int_moisture;
-  appData[2] = moistureValue >> 8;
-  appData[3] = moistureValue;
-  appData[4] = int_battery >> 8;
-  appData[5] = int_battery;
+  appData[0] = (int)WM1_Resistance >> 8;
+  appData[1] = (int)WM1_Resistance;
+  appData[2] = abs(WM1_CB) >> 8;
+  appData[3] = abs(WM1_CB);
+
+  appData[4] = (int)WM2_Resistance >> 8;
+  appData[5] = (int)WM2_Resistance;
+  appData[6] = abs(WM2_CB) >> 8;
+  appData[7] = abs(WM2_CB);
+
+  appData[8] = (int)WM3_Resistance >> 8;
+  appData[9] = (int)WM3_Resistance;
+  appData[10] = abs(WM3_CB) >> 8;
+  appData[11] = abs(WM3_CB);
+
+  appData[12] = moistureValue >> 8;
+  appData[13] = moistureValue;
+  appData[14] = int_battery >> 8;
+  appData[15] = int_battery;
 }
 
 float readWMsensor() {  //read ADC and get resistance of sensor
@@ -187,9 +201,9 @@ float readWMsensor() {  //read ADC and get resistance of sensor
   SenVWM1 = ((ARead_A1 / 4096) * SupplyV) / (num_of_read); //get the average of the readings in the first direction and convert to volts
   SenVWM2 = ((ARead_A2 / 4096) * SupplyV) / (num_of_read); //get the average of the readings in the second direction and convert to volts
 
-  double WM_ResistanceA = (Rx * (SupplyV - SenVWM1) / SenVWM1); //do the voltage divider math, using the Rx variable representing the known resistor
-  double WM_ResistanceB = Rx * SenVWM2 / (SupplyV - SenVWM2);  // reverse
-  double WM_Resistance = ((WM_ResistanceA + WM_ResistanceB) / 2); //average the two directions
+  float WM_ResistanceA = (Rx * (SupplyV - SenVWM1) / SenVWM1); //do the voltage divider math, using the Rx variable representing the known resistor
+  float WM_ResistanceB = Rx * SenVWM2 / (SupplyV - SenVWM2);  // reverse
+  float WM_Resistance = ((WM_ResistanceA + WM_ResistanceB) / 2); //average the two directions
   return WM_Resistance;
 }
 
