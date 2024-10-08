@@ -5,17 +5,20 @@
 #include <Wire.h>  
 #include "HT_SSD1306Wire.h"
 #include <math.h>
+#include <string.h>
 
 #define VBAT_Read 1 // Pin für die Battery
 #define	ADC_Ctrl 37
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
-#define RXD2 48
-#define TXD2 47
+#define RXD2 48 // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
+#define TXD2 47 // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 
-uint32_t license[4] = {0x9856AD47, 0x625548C6, 0x98E9ABF8, 0xE05B1ED5};
+// uint32_t license[4] = {0x9856AD47, 0x625548C6, 0x98E9ABF8, 0xE05B1ED5};
 
 // License if needed: 9856AD47625548C698E9ABF8E05B1ED5
 
+
+//Add your TTN-Credentials here
 /* OTAA para*/
 uint8_t devEui[] = { };
 uint8_t appEui[] = { };
@@ -59,14 +62,16 @@ uint8_t confirmedNbTrials = 4;
 const float BATTERY_THRESHOLD = 2.7;
 
 const int Rx = 10000;  //fixed resistor attached in series to the sensor and ground...the same value repeated for all WM and Temp Sensor.
-const long default_TempC = 24;
+const long default_TempC = 24; // right now fixed, but can be changed, if temperaturesensor is connected 
 const long open_resistance = 35000; //check the open resistance value by replacing sensor with an open and replace the value here...this value might vary slightly with circuit components
 const long short_resistance = 200; // similarly check short resistance by shorting the sensor terminals and replace the value here.
 const long short_CB = 240, open_CB = 255 ;
-const int SupplyV = 5; // Assuming 5V output for SupplyV, this can be measured and replaced with an exact value if required
+const int SupplyV = 3.3; // Assuming 5V output for SupplyV, this can be measured and replaced with an exact value if required
 const float cFactor = 1.1; //correction factor optional for adjusting curves. Traditionally IRROMETER devices used a different reading method, voltage divider circuits often require this adjustment to match exactly.
 int i, j = 0, WM1_CB = 0, WM2_CB = 0, WM3_CB = 0;
 float SenV10K = 0, SenVTempC = 0, SenVWM1 = 0, SenVWM2 = 0, ARead_A1 = 0, ARead_A2 = 0, WM3_Resistance = 0, WM2_Resistance = 0, WM1_Resistance = 0, TempC_Resistance = 0, TempC = 0;
+String receivedSMT100Data = "";
+int exampleSMT100Data = 20; // if no sensor is connected exampledata needs to be used
 const int S0 = 5;
 const int S1 = 6;
 const int Sensor1 = 4;
@@ -74,10 +79,8 @@ const int Sensor2 = 2;
 const int Mux = 7;
 const int Sense = 3;
 
-/* Prepares the payload of the frame */
-static void prepareTxFrame(uint8_t port) {
-  while (j == 0)
-  {
+void getWatermarkValues() {
+    while (j == 0){
     //enable the MUX
     digitalWrite(Mux, LOW);
 
@@ -141,7 +144,24 @@ static void prepareTxFrame(uint8_t port) {
     //delay(200000);
     j=1;
   }
+}
 
+void getSMT100Temperature() {
+  // Send "GetTemperature!" command to the RS485 device via UART1
+  Serial1.print("GetTemperature!000000\r\n");  // Send ASCII command to the RS485 device (UART1)
+  // Wait for a response from the RS485 device
+  delay(100);  // Adjust delay based on your RS485 device's response time
+  // Check if the RS485 device has sent back a response
+  if (Serial1.available()) {
+    receivedSMT100Data = Serial1.readStringUntil('\n');  // Read response until newline
+    Serial.println("Received from RS485: " + receivedSMT100Data);  // Output to Debug Serial Monitor (UART0)
+  } else {
+    Serial.println("No RS485 available");
+  }
+}
+
+/* Prepares the payload of the frame */
+static void prepareTxFrame(uint8_t port) {
   // Konvertiere den Feuchtigkeitswert zu einem Prozentsatz (0-100%)
   int moistureValue = 2;
   float moisturePercentage = map(moistureValue, 1500, 3250, 100, 0);
@@ -154,17 +174,11 @@ static void prepareTxFrame(uint8_t port) {
     esp_deep_sleep_start();
   }
 
-  // Send "GetTemperature!" command to the RS485 device via UART1
-  Serial1.print("GetTemperature!000000\r\n");  // Send ASCII command to the RS485 device (UART1)
-  // Wait for a response from the RS485 device
-  delay(100);  // Adjust delay based on your RS485 device's response time
-  // Check if the RS485 device has sent back a response
-  if (Serial1.available()) {
-    String receivedData = Serial1.readStringUntil('\n');  // Read response until newline
-    Serial.println("Received from RS485: " + receivedData);  // Output to Debug Serial Monitor (UART0)
-  }
-  // Small delay before the next request
-  delay(1000);
+  // reading Temperature of SMT100
+  getSMT100Temperature();
+
+  // reading Sensorvalues of Watermarksensors
+  getWatermarkValues();
   
   appDataSize = 16;
 
@@ -183,14 +197,16 @@ static void prepareTxFrame(uint8_t port) {
   appData[10] = abs(WM3_CB) >> 8;
   appData[11] = abs(WM3_CB);
 
-  appData[12] = moistureValue >> 8;
-  appData[13] = moistureValue;
+  /* This data needs to be changed to "receivedSMT100Data" if a sensor is connected, 
+  and the string needs to be converted to int */
+  appData[12] = (int)exampleSMT100Data >> 8; 
+  appData[13] = (int)exampleSMT100Data;
+
   appData[14] = int_battery >> 8;
   appData[15] = int_battery;
 }
 
 float readWMsensor() {  //read ADC and get resistance of sensor
-
   ARead_A1 = 0;
   ARead_A2 = 0;
 
@@ -221,7 +237,8 @@ float readWMsensor() {  //read ADC and get resistance of sensor
   return WM_Resistance;
 }
 
-int myCBvalue(int res, float TC, float cF) {   //conversion of ohms to CB
+//conversion of ohms to CB
+int myCBvalue(int res, float TC, float cF) {
   int WM_CB;
   float resK = res / 1000.0;
   float tempD = 1.00 + 0.018 * (TC - 24.00);
@@ -306,14 +323,13 @@ void setup() {
   LoRa.setSpreadingFactor(12);
 }
 
-void VextON(void)
-{
+void VextON(void) {
   pinMode(Vext,OUTPUT);
   digitalWrite(Vext, LOW);
 }
 
-void VextOFF(void) //Vext default OFF
-{
+//Vext default OFF
+void VextOFF(void) {
   pinMode(Vext,OUTPUT);
   digitalWrite(Vext, HIGH);
 }
