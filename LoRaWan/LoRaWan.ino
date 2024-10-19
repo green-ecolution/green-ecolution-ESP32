@@ -13,11 +13,6 @@
 #define RXD2 48 // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 #define TXD2 47 // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 
-// uint32_t license[4] = {0x9856AD47, 0x625548C6, 0x98E9ABF8, 0xE05B1ED5};
-
-// License if needed: 9856AD47625548C698E9ABF8E05B1ED5
-
-
 //Add your TTN-Credentials here
 /* OTAA para*/
 uint8_t devEui[] = { };
@@ -71,6 +66,7 @@ const float cFactor = 1.1; //correction factor optional for adjusting curves. Tr
 int i, j = 0, WM1_CB = 0, WM2_CB = 0, WM3_CB = 0;
 float SenV10K = 0, SenVTempC = 0, SenVWM1 = 0, SenVWM2 = 0, ARead_A1 = 0, ARead_A2 = 0, WM3_Resistance = 0, WM2_Resistance = 0, WM1_Resistance = 0, TempC_Resistance = 0, TempC = 0;
 String receivedSMT100Data = "";
+int castedSMT100Data = 0;
 int exampleSMT100Data = 20; // if no sensor is connected exampledata needs to be used
 const int S0 = 5;
 const int S1 = 6;
@@ -154,6 +150,8 @@ void getSMT100Temperature() {
   // Check if the RS485 device has sent back a response
   if (Serial1.available()) {
     receivedSMT100Data = Serial1.readStringUntil('\n');  // Read response until newline
+    castedSMT100Data = (int)(receivedSMT100Data.toFloat() * 10);
+    Serial.println(castedSMT100Data);
     Serial.println("Received from RS485: " + receivedSMT100Data);  // Output to Debug Serial Monitor (UART0)
   } else {
     Serial.println("No RS485 available");
@@ -199,8 +197,8 @@ static void prepareTxFrame(uint8_t port) {
 
   /* This data needs to be changed to "receivedSMT100Data" if a sensor is connected, 
   and the string needs to be converted to int */
-  appData[12] = (int)exampleSMT100Data >> 8; 
-  appData[13] = (int)exampleSMT100Data;
+  appData[12] = (int)castedSMT100Data >> 8; 
+  appData[13] = (int)castedSMT100Data;
 
   appData[14] = int_battery >> 8;
   appData[15] = int_battery;
