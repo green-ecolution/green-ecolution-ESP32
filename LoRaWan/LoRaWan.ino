@@ -22,10 +22,10 @@ uint8_t appKey[] = { };
 /* ABP para*/
 uint8_t nwkSKey[] = { };
 uint8_t appSKey[] = { };
-uint32_t devAddr = (uint32_t)0x;
+uint32_t devAddr = (uint32_t)0x00000000;
 
 /*LoraWan channelsmask, default channels 0-7*/ 
-uint16_t userChannelsMask[6] = { };
+uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 };
 
 /*LoraWan region, select in Arduino IDE tools*/
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
@@ -142,6 +142,16 @@ void getWatermarkValues() {
   }
 }
 
+String removeNonNumericCharacters(String str) {
+  String result = ""; // Erstellt einen leeren String für das Ergebnis
+  for(unsigned int i = 0; i < str.length(); i++) {
+    if (isDigit(str[i])) {
+      result += str[i]; // Füge nur numerische Zeichen zum Ergebnis hinzu
+    }
+  }
+  return result;
+}
+
 void getSMT100Temperature() {
   // Send "GetTemperature!" command to the RS485 device via UART1
   Serial1.print("GetTemperature!000000\r\n");  // Send ASCII command to the RS485 device (UART1)
@@ -150,7 +160,8 @@ void getSMT100Temperature() {
   // Check if the RS485 device has sent back a response
   if (Serial1.available()) {
     receivedSMT100Data = Serial1.readStringUntil('\n');  // Read response until newline
-    castedSMT100Data = (int)(receivedSMT100Data.toFloat() * 10);
+    String cleanedStr = removeNonNumericCharacters(receivedSMT100Data);
+    castedSMT100Data = cleanedStr.toInt();
     Serial.println(castedSMT100Data);
     Serial.println("Received from RS485: " + receivedSMT100Data);  // Output to Debug Serial Monitor (UART0)
   } else {
@@ -161,6 +172,7 @@ void getSMT100Temperature() {
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
   // Konvertiere den Feuchtigkeitswert zu einem Prozentsatz (0-100%)
+  VextON();
   int moistureValue = 2;
   float moisturePercentage = map(moistureValue, 1500, 3250, 100, 0);
   int int_moisture = moisturePercentage * 10; // Umwandlung in eine Ganzzahl und entfernen der Dezimalstelle
@@ -177,6 +189,8 @@ static void prepareTxFrame(uint8_t port) {
 
   // reading Sensorvalues of Watermarksensors
   getWatermarkValues();
+  
+  VextOFF();
   
   appDataSize = 16;
 
