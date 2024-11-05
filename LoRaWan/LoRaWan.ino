@@ -12,6 +12,8 @@
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
 #define RXD2 48 // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 #define TXD2 47 // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
+#define GPSRXD 33 // rx-pin for GPS
+#define GPSTXD 34 // tx-pin for GPS
 
 //Add your TTN-Credentials here
 /* OTAA para*/
@@ -22,10 +24,10 @@ uint8_t appKey[] = { };
 /* ABP para*/
 uint8_t nwkSKey[] = { };
 uint8_t appSKey[] = { };
-uint32_t devAddr = (uint32_t)0x;
+uint32_t devAddr = (uint32_t)0x00000000;
 
 /*LoraWan channelsmask, default channels 0-7*/ 
-uint16_t userChannelsMask[6] = { };
+uint16_t userChannelsMask[6] = { 0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 };
 
 /*LoraWan region, select in Arduino IDE tools*/
 LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
@@ -74,6 +76,64 @@ const int Sensor1 = 4;
 const int Sensor2 = 2;
 const int Mux = 7;
 const int Sense = 3;
+
+String nmeaString = "";
+
+String getGpsSignal() {
+  String gpsDataComplete = "";
+  while(Serial2.available() > 0) {
+    char gpsData = Serial2.read();
+    gpsDataComplete += gpsData;
+  }
+
+  Serial.println(gpsDataComplete);
+
+  return gpsDataComplete;
+}
+
+// Basic Implementation for parsing GPS-Values
+/*
+int parseLatitude(String lat, char latDir) {
+    int degrees = lat.substring(0, 2).toInt();
+    float minutes = lat.substring(2).toFloat();
+    float decimalLatitude = degrees + (minutes / 60.0);
+    if (latDir == 'S') {
+        decimalLatitude = -decimalLatitude;
+    }
+    return (int) decimalLatitude;
+}
+
+int parseLongitude(String lon, char lonDir) {
+    int degrees = lon.substring(0, 3).toInt();
+    float minutes = lon.substring(3).toFloat();
+    float decimalLongitude = degrees + (minutes / 60.0);
+    if (lonDir == 'W') {
+        decimalLongitude = -decimalLongitude;
+    }
+    return (int) decimalLongitude;
+}
+
+void parseLatLonFromNMEA(String nmea) {
+    int latIndex = nmea.indexOf(',') + 1;  // Find start of latitude
+    latIndex = nmea.indexOf(',', latIndex) + 1;  // Move to latitude field
+    latIndex = nmea.indexOf(',', latIndex) + 1;  // Find latitude data
+
+    String latitudeStr = nmea.substring(latIndex, nmea.indexOf(',', latIndex));
+    char latitudeDir = nmea.charAt(nmea.indexOf(',', latIndex) + 1);
+
+    int lonIndex = nmea.indexOf(',', nmea.indexOf(',', latIndex) + 1) + 1;
+    String longitudeStr = nmea.substring(lonIndex, nmea.indexOf(',', lonIndex));
+    char longitudeDir = nmea.charAt(nmea.indexOf(',', lonIndex) + 1);
+
+    int latitude = parseLatitude(latitudeStr, latitudeDir);
+    int longitude = parseLongitude(longitudeStr, longitudeDir);
+
+    Serial.print("Breitengrad: ");
+    Serial.println(latitude);
+    Serial.print("Längengrad: ");
+    Serial.println(longitude);
+} */
+// Basic Implementation for parsing GPS-Values
 
 void getWatermarkValues() {
     while (j == 0){
@@ -142,6 +202,16 @@ void getWatermarkValues() {
   }
 }
 
+String removeNonNumericCharacters(String str) {
+  String result = ""; // Erstellt einen leeren String für das Ergebnis
+  for(unsigned int i = 0; i < str.length(); i++) {
+    if (isDigit(str[i])) {
+      result += str[i]; // Füge nur numerische Zeichen zum Ergebnis hinzu
+    }
+  }
+  return result;
+}
+
 void getSMT100Temperature() {
   // Send "GetTemperature!" command to the RS485 device via UART1
   Serial1.print("GetTemperature!000000\r\n");  // Send ASCII command to the RS485 device (UART1)
@@ -150,7 +220,8 @@ void getSMT100Temperature() {
   // Check if the RS485 device has sent back a response
   if (Serial1.available()) {
     receivedSMT100Data = Serial1.readStringUntil('\n');  // Read response until newline
-    castedSMT100Data = (int)(receivedSMT100Data.toFloat() * 10);
+    String cleanedStr = removeNonNumericCharacters(receivedSMT100Data);
+    castedSMT100Data = cleanedStr.toInt();
     Serial.println(castedSMT100Data);
     Serial.println("Received from RS485: " + receivedSMT100Data);  // Output to Debug Serial Monitor (UART0)
   } else {
@@ -161,6 +232,7 @@ void getSMT100Temperature() {
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
   // Konvertiere den Feuchtigkeitswert zu einem Prozentsatz (0-100%)
+  VextON();
   int moistureValue = 2;
   float moisturePercentage = map(moistureValue, 1500, 3250, 100, 0);
   int int_moisture = moisturePercentage * 10; // Umwandlung in eine Ganzzahl und entfernen der Dezimalstelle
@@ -177,6 +249,12 @@ static void prepareTxFrame(uint8_t port) {
 
   // reading Sensorvalues of Watermarksensors
   getWatermarkValues();
+
+  // reading GPS
+  nmeaString = getGpsSignal();
+  // parseLatLonFromNMEA(nmeaString); //TODO
+  
+  VextOFF();
   
   appDataSize = 16;
 
@@ -293,6 +371,7 @@ uint16_t readBatteryVoltage() {
 void setup() {
   // Initialize UART1 (TX = GPIO17, RX = GPIO16) for RS485 communication
   Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);  // RS485 communication on UART1
+  Serial2.begin(9600, SERIAL_8N1, GPSRXD, GPSTXD);
   Serial.begin(115200);
   VextON();
   delay(100);
