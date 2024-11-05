@@ -12,6 +12,8 @@
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
 #define RXD2 48 // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 #define TXD2 47 // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
+#define GPSRXD 33 // rx-pin for GPS
+#define GPSTXD 34 // tx-pin for GPS
 
 //Add your TTN-Credentials here
 /* OTAA para*/
@@ -74,6 +76,18 @@ const int Sensor1 = 4;
 const int Sensor2 = 2;
 const int Mux = 7;
 const int Sense = 3;
+
+String getGpsSignal() {
+  String gpsDataComplete = "";
+  while(Serial2.available() > 0) {
+    char gpsData = Serial2.read();
+    gpsDataComplete += gpsData;
+  }
+
+  Serial.print(gpsDataComplete);
+
+  return gpsDataComplete;
+}
 
 void getWatermarkValues() {
     while (j == 0){
@@ -189,6 +203,9 @@ static void prepareTxFrame(uint8_t port) {
 
   // reading Sensorvalues of Watermarksensors
   getWatermarkValues();
+
+  // reading GPS
+  getGpsSignal();
   
   VextOFF();
   
@@ -307,6 +324,7 @@ uint16_t readBatteryVoltage() {
 void setup() {
   // Initialize UART1 (TX = GPIO17, RX = GPIO16) for RS485 communication
   Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);  // RS485 communication on UART1
+  Serial2.begin(9600, SERIAL_8N1, GPSRXD, GPSTXD);
   Serial.begin(115200);
   VextON();
   delay(100);
