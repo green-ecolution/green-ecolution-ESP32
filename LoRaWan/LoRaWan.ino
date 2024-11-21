@@ -69,7 +69,6 @@ int i, j = 0, WM1_CB = 0, WM2_CB = 0, WM3_CB = 0;
 float SenV10K = 0, SenVTempC = 0, SenVWM1 = 0, SenVWM2 = 0, ARead_A1 = 0, ARead_A2 = 0, WM3_Resistance = 0, WM2_Resistance = 0, WM1_Resistance = 0, TempC_Resistance = 0, TempC = 0;
 String receivedSMT100Data = "";
 int castedSMT100Data = 0;
-int exampleSMT100Data = 20; // if no sensor is connected exampledata needs to be used
 const int S0 = 5;
 const int S1 = 6;
 const int Sensor1 = 4;
@@ -177,7 +176,6 @@ void getWatermarkValues() {
     delay(100); //0.1 second wait before moving to next channel or switching MUX
 
     //convert the measured reistance to kPa/centibars of soil water tension
-    TempC = 24;
     WM1_CB = myCBvalue(WM1_Resistance, TempC, cFactor);
     WM2_CB = myCBvalue(WM2_Resistance, TempC, cFactor);
     WM3_CB = myCBvalue(WM3_Resistance, TempC, cFactor);
@@ -222,10 +220,12 @@ void getSMT100Temperature() {
     receivedSMT100Data = Serial1.readStringUntil('\n');  // Read response until newline
     String cleanedStr = removeNonNumericCharacters(receivedSMT100Data);
     castedSMT100Data = cleanedStr.toInt();
+    TempC = castedSMT100Data;
     Serial.println(castedSMT100Data);
     Serial.println("Received from RS485: " + receivedSMT100Data);  // Output to Debug Serial Monitor (UART0)
   } else {
-    Serial.println("No RS485 available");
+    Serial.println("No RS485 available. Default Temp of" + String(default_TempC) + "°C is used");
+    TempC = default_TempC;
   }
 }
 
