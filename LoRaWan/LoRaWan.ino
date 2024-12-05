@@ -12,8 +12,8 @@
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
 #define RXD2 48 // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 #define TXD2 47 // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
-#define GPSRXD 33 // rx-pin for GPS
-#define GPSTXD 34 // tx-pin for GPS
+#define GPSTXD 33 // rx-pin for GPS
+#define GPSRXD 34 // tx-pin for GPS
 
 //Add your TTN-Credentials here
 /* OTAA para*/
@@ -89,50 +89,6 @@ String getGpsSignal() {
 
   return gpsDataComplete;
 }
-
-// Basic Implementation for parsing GPS-Values
-/*
-int parseLatitude(String lat, char latDir) {
-    int degrees = lat.substring(0, 2).toInt();
-    float minutes = lat.substring(2).toFloat();
-    float decimalLatitude = degrees + (minutes / 60.0);
-    if (latDir == 'S') {
-        decimalLatitude = -decimalLatitude;
-    }
-    return (int) decimalLatitude;
-}
-
-int parseLongitude(String lon, char lonDir) {
-    int degrees = lon.substring(0, 3).toInt();
-    float minutes = lon.substring(3).toFloat();
-    float decimalLongitude = degrees + (minutes / 60.0);
-    if (lonDir == 'W') {
-        decimalLongitude = -decimalLongitude;
-    }
-    return (int) decimalLongitude;
-}
-
-void parseLatLonFromNMEA(String nmea) {
-    int latIndex = nmea.indexOf(',') + 1;  // Find start of latitude
-    latIndex = nmea.indexOf(',', latIndex) + 1;  // Move to latitude field
-    latIndex = nmea.indexOf(',', latIndex) + 1;  // Find latitude data
-
-    String latitudeStr = nmea.substring(latIndex, nmea.indexOf(',', latIndex));
-    char latitudeDir = nmea.charAt(nmea.indexOf(',', latIndex) + 1);
-
-    int lonIndex = nmea.indexOf(',', nmea.indexOf(',', latIndex) + 1) + 1;
-    String longitudeStr = nmea.substring(lonIndex, nmea.indexOf(',', lonIndex));
-    char longitudeDir = nmea.charAt(nmea.indexOf(',', lonIndex) + 1);
-
-    int latitude = parseLatitude(latitudeStr, latitudeDir);
-    int longitude = parseLongitude(longitudeStr, longitudeDir);
-
-    Serial.print("Breitengrad: ");
-    Serial.println(latitude);
-    Serial.print("Längengrad: ");
-    Serial.println(longitude);
-} */
-// Basic Implementation for parsing GPS-Values
 
 void getWatermarkValues() {
     while (j == 0){
@@ -251,8 +207,7 @@ static void prepareTxFrame(uint8_t port) {
   getWatermarkValues();
 
   // reading GPS
-  nmeaString = getGpsSignal();
-  // parseLatLonFromNMEA(nmeaString); //TODO
+  nmeaString = getGpsSignal(); //TODO: Parsen
   
   VextOFF();
   
