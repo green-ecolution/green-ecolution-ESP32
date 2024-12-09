@@ -6,6 +6,7 @@
 #include "HT_SSD1306Wire.h"
 #include <math.h>
 #include <string.h>
+#include "HT_TinyGPS++.h"
 
 #define VBAT_Read 1   // pin for Battery
 #define	ADC_Ctrl 37
@@ -76,18 +77,23 @@ const int Sensor2 = 2;
 const int Mux = 7;
 const int Sense = 3;
 
-String nmeaString = "";
+static const uint32_t GPSBaud = 9600;
 
-String getGpsSignal() {
-  String gpsDataComplete = "";
-  while(Serial2.available() > 0) {
-    char gpsData = Serial2.read();
-    gpsDataComplete += gpsData;
-  }
+// The TinyGPSPlus object
+TinyGPSPlus gps;
+unsigned long lat = 0;
+unsigned long lng = 0;
 
-  Serial.println(gpsDataComplete);
-
-  return gpsDataComplete;
+void getGpsSignal(unsigned long ms) {
+  unsigned long start = millis();
+  do {
+  while(Serial2.available() > 0) 
+    gps.encode(Serial2.read());
+    //char gpsData = Serial2.read();
+    //gpsDataComplete += gpsData;
+    lat = gps.location.lat() * 1000000;
+    lng = gps.location.lng() * 1000000;
+  } while (millis() - start < ms); 
 }
 
 void getWatermarkValues() {
@@ -199,6 +205,7 @@ static void prepareTxFrame(uint8_t port) {
     esp_deep_sleep_start();
   }
 
+  
   // reading Temperature of SMT100
   getSMT100Temperature();
 
@@ -206,11 +213,13 @@ static void prepareTxFrame(uint8_t port) {
   getWatermarkValues();
 
   // reading GPS
-  nmeaString = getGpsSignal(); //TODO: Parsen
-  
+  getGpsSignal(1000);
+  Serial.println(lat);
+  Serial.println(lng);
+
   VextOFF();
   
-  appDataSize = 16;
+  appDataSize = 24;
 
   appData[0] = (int)WM1_Resistance >> 8;
   appData[1] = (int)WM1_Resistance;
@@ -232,6 +241,18 @@ static void prepareTxFrame(uint8_t port) {
 
   appData[14] = int_battery >> 8;
   appData[15] = int_battery;
+
+  appData[16] = (lat >> 24); 
+  appData[17] = (lat >> 16); 
+  appData[18] = (lat >> 8);  
+  appData[19] = lat;         
+
+  appData[20] = (lng >> 24); 
+  appData[21] = (lng >> 16); 
+  appData[22] = (lng >> 8);  
+  appData[23] = lng;         
+
+
 }
 
 /* Read ADC and get resistance of sensor */
@@ -325,7 +346,7 @@ uint16_t readBatteryVoltage() {
 void setup() {
   // initialize UART1 (TX = GPIO17, RX = GPIO16) for RS485 communication
   Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);  // RS485 communication on UART1
-  Serial2.begin(9600, SERIAL_8N1, GPSRXD, GPSTXD);
+  Serial2.begin(GPSBaud, SERIAL_8N1, GPSRXD, GPSTXD);
   Serial.begin(115200);
   VextON();
   delay(100);
