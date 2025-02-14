@@ -37,7 +37,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /* the application data transmission duty cycle.  value in [ms]. */
-uint32_t appTxDutyCycle = 10000;
+uint32_t appTxDutyCycle = 3600000; //3600000
 
 /* OTAA or ABP */
 bool overTheAirActivation = true;
@@ -57,19 +57,22 @@ extern uint8_t appData[LORAWAN_APP_DATA_MAX_SIZE];
 /* Number of trials to transmit the frame */
 uint8_t confirmedNbTrials = 4;
 
-const float BATTERY_THRESHOLD = 2.7;
+const float BATTERY_THRESHOLD = 3.0;
 
 const int Rx = 10000;  // fixed resistor attached in series to the sensor and ground...the same value repeated for all WM and Temp Sensor.
-const long default_TempC = 24; // right now fixed, but can be changed, if temperaturesensor is connected 
+const long default_TempC = 10; // right now fixed, but can be changed, if temperaturesensor is connected 
+const long default_Mositure = 50;
 const long open_resistance = 35000; // check the open resistance value by replacing sensor with an open and replace the value here...this value might vary slightly with circuit components
 const long short_resistance = 200; // similarly check short resistance by shorting the sensor terminals and replace the value here.
 const long short_CB = 240, open_CB = 255 ;
 const int SupplyV = 3.3; // Assuming 5V output for SupplyV, this can be measured and replaced with an exact value if required
 const float cFactor = 1.1; // correction factor optional for adjusting curves. Traditionally IRROMETER devices used a different reading method, voltage divider circuits often require this adjustment to match exactly.
 int i, j = 0, WM1_CB = 0, WM2_CB = 0, WM3_CB = 0;
-float SenV10K = 0, SenVTempC = 0, SenVWM1 = 0, SenVWM2 = 0, ARead_A1 = 0, ARead_A2 = 0, WM3_Resistance = 0, WM2_Resistance = 0, WM1_Resistance = 0, TempC_Resistance = 0, TempC = 0;
-String receivedSMT100Data = "";
-int castedSMT100Data = 0;
+float SenV10K = 0, SenVTempC = 0, SenVWM1 = 0, SenVWM2 = 0, ARead_A1 = 0, ARead_A2 = 0, WM3_Resistance = 0, WM2_Resistance = 0, WM1_Resistance = 0, TempC_Resistance = 0, TempC = 0, Moisture = 0;
+String receivedSMT100TempData = "";
+String receivedSMT100MoistData = "";
+int castedSMT100TempData = 0;
+int castedSMT100MoistData = 0;
 const int S0 = 5;
 const int S1 = 6;
 const int Sensor1 = 4;
@@ -174,26 +177,43 @@ String removeNonNumericCharacters(String str) {
 void getSMT100Temperature() {
   // send "GetTemperature!" command to the RS485 device via UART1
   Serial1.print("GetTemperature!000000\r\n");  // send ASCII command to the RS485 device (UART1)
+  
   // wait for a response from the RS485 device
   delay(100);  // adjust delay based on your RS485 device's response time
   // check if the RS485 device has sent back a response
   if (Serial1.available()) {
-    receivedSMT100Data = Serial1.readStringUntil('\n');  // read response until newline
-    String cleanedStr = removeNonNumericCharacters(receivedSMT100Data);
-    castedSMT100Data = cleanedStr.toInt();
-    TempC = castedSMT100Data;
-    Serial.println(castedSMT100Data);
-    Serial.println("Received from RS485: " + receivedSMT100Data);  // output to Debug Serial Monitor (UART0)
+    receivedSMT100TempData = Serial1.readStringUntil('\n');  // read response until newline
+    String cleanedStr = removeNonNumericCharacters(receivedSMT100TempData);
+    castedSMT100TempData = cleanedStr.toInt();
+    TempC = castedSMT100TempData;
+    Serial.println(castedSMT100TempData);
+    Serial.println("Received from RS485: " + receivedSMT100TempData);  // output to Debug Serial Monitor (UART0)
   } else {
     Serial.println("No RS485 available. Default Temp of" + String(default_TempC) + "°C is used");
     TempC = default_TempC;
   }
 }
 
+void getSMT100Moisture(){
+  Serial1.print("GetWaterContent!000000\r\n");
+  delay(100);
+
+  if (Serial1.available()) {
+    receivedSMT100MoistData = Serial1.readStringUntil('\n');  // read response until newline
+    String cleanedStr = removeNonNumericCharacters(receivedSMT100MoistData);
+    castedSMT100MoistData = cleanedStr.toInt();
+    Moisture = castedSMT100MoistData;
+    Serial.println(castedSMT100MoistData);
+    Serial.println("Received from RS485: " + receivedSMT100MoistData);  // output to Debug Serial Monitor (UART0)
+  } else {
+    Serial.println("No RS485 available. Default Moisture of" + String(default_Mositure) + "% is used");
+    Moisture = default_Mositure;
+  }
+}
+
 /* Prepares the payload of the frame */
 static void prepareTxFrame(uint8_t port) {
   // converts Moisturevalue to Percentage (0-100%)
-  VextON();
   int moistureValue = 2;
   float moisturePercentage = map(moistureValue, 1500, 3250, 100, 0);
   int int_moisture = moisturePercentage * 10; // conversion to an integer and removal of the decimal place
@@ -208,6 +228,7 @@ static void prepareTxFrame(uint8_t port) {
   
   // reading Temperature of SMT100
   getSMT100Temperature();
+  getSMT100Moisture();
 
   // reading Sensorvalues of Watermarksensors
   getWatermarkValues();
@@ -216,10 +237,8 @@ static void prepareTxFrame(uint8_t port) {
   getGpsSignal(1000);
   Serial.println(lat);
   Serial.println(lng);
-
-  VextOFF();
   
-  appDataSize = 24;
+  appDataSize = 26;
 
   appData[0] = (int)WM1_Resistance >> 8;
   appData[1] = (int)WM1_Resistance;
@@ -236,8 +255,8 @@ static void prepareTxFrame(uint8_t port) {
   appData[10] = abs(WM3_CB) >> 8;
   appData[11] = abs(WM3_CB);
 
-  appData[12] = (int)castedSMT100Data >> 8; 
-  appData[13] = (int)castedSMT100Data;
+  appData[12] = (int)castedSMT100TempData >> 8; 
+  appData[13] = (int)castedSMT100TempData;
 
   appData[14] = int_battery >> 8;
   appData[15] = int_battery;
@@ -250,9 +269,10 @@ static void prepareTxFrame(uint8_t port) {
   appData[20] = (lng >> 24); 
   appData[21] = (lng >> 16); 
   appData[22] = (lng >> 8);  
-  appData[23] = lng;         
+  appData[23] = lng;     
 
-
+  appData[24] = (int) castedSMT100MoistData >> 8;
+  appData[25] = (int) castedSMT100MoistData;
 }
 
 /* Read ADC and get resistance of sensor */
@@ -355,7 +375,7 @@ void setup() {
   Serial.println("ESP32 RS485 communication started...");
   Serial.println("Serial Txd is on pin: "+String(TXD2));
   Serial.println("Serial Rxd is on pin: "+String(RXD2));
-
+  VextON();
 
   pinMode(ADC_Ctrl,OUTPUT);
   pinMode(VBAT_Read,INPUT);
