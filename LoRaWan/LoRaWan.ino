@@ -13,14 +13,16 @@
 #define num_of_read 1 // number of iterations, each is actually two reads of the sensor (both directions)
 #define RXD2 48       // rx-pin for SMT-100 Sensor (needs to be changed if other board is used)
 #define TXD2 47       // tx-pin for SMT-100 Sensor (needs to be changed if other board is used)
-#define GPSTXD 33     // rx-pin for GPS
-#define GPSRXD 34     // tx-pin for GPS
+#define GPSTXD 33     // connected to rx-pin of GPS module
+#define GPSRXD 34     // connected to tx-pin of GPS module
 
 // add your TTN-Credentials here
 /* OTAA para */
 uint8_t devEui[] = { };
 uint8_t appEui[] = { };
 uint8_t appKey[] = { };
+
+const char* deviceName = "placeholder";
 
 /* ABP para */
 uint8_t nwkSKey[] = { };
@@ -37,7 +39,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /* the application data transmission duty cycle.  value in [ms]. */
-uint32_t appTxDutyCycle = 3600000; //3600000
+uint32_t appTxDutyCycle = 60*1000; //3600000
 
 /* OTAA or ABP */
 bool overTheAirActivation = true;
@@ -80,23 +82,61 @@ const int Sensor2 = 2;
 const int Mux = 7;
 const int Sense = 3;
 
+
+// GPS
+// Constants
+const unsigned long GPS_DATA_TIMEOUT = 10 * 1000;  // 10 seconds
+const unsigned long GPS_FIX_TIMEOUT = 1 * 60 * 1000;  // 5 minutes
+const unsigned long GPS_CHECK_INTERVAL = 200;  // 200 ms
 static const uint32_t GPSBaud = 9600;
 
-// The TinyGPSPlus object
 TinyGPSPlus gps;
-unsigned long lat = 0;
-unsigned long lng = 0;
+float latitude = 0.0;
+float longitude = 0.0;
+unsigned long timeTaken = 0;
 
-void getGpsSignal(unsigned long ms) {
-  unsigned long start = millis();
-  do {
-  while(Serial2.available() > 0) 
-    gps.encode(Serial2.read());
-    //char gpsData = Serial2.read();
-    //gpsDataComplete += gpsData;
-    lat = gps.location.lat() * 1000000;
-    lng = gps.location.lng() * 1000000;
-  } while (millis() - start < ms); 
+bool getGPSSignal() {
+  unsigned long startTime = millis();  // Record the start time
+  bool validDataReceived = false;
+  unsigned long lastCheckTime = 0;     // Flag to check if valid NMEA data is received
+
+  while (millis() - startTime <= GPS_FIX_TIMEOUT) {
+    // Non-blocking delay for periodic checks
+    unsigned long currentTime = millis();
+    if (currentTime - lastCheckTime >= GPS_CHECK_INTERVAL) {
+      lastCheckTime = currentTime;  // Update the last check time
+
+      // Check if there is data available from the GPS module
+      while (Serial2.available() > 0) {
+        char data = Serial2.read();
+        // Print the raw NMEA data to the Serial Monitor
+        Serial.write(data);
+        // Feed the data to TinyGPS++
+        if (gps.encode(data)) {
+          validDataReceived = true;  // Set the flag to true if valid NMEA data is received
+        }
+      }
+    }
+
+    // Check if a valid fix has been acquired
+    if (gps.location.isValid()) {
+      latitude = gps.location.lat();
+      longitude = gps.location.lng();
+      timeTaken = millis() - startTime;
+      return true;  // Valid GPS signal found
+    }
+
+    // Check if no valid data has been received within the data timeout period
+    if (!validDataReceived && millis() - startTime > GPS_DATA_TIMEOUT) {
+      Serial.println("No valid data from GPS-module received. Check GPS-module connection. Not signal, the actual module!");
+      return false;  // No valid GPS data received
+    }
+  }
+
+  // Timeout, no valid signal found
+  timeTaken = millis() - startTime;
+  Serial.println("GPS fix timeout. No valid signal found.");
+  return false;
 }
 
 void getWatermarkValues() {
@@ -233,12 +273,23 @@ static void prepareTxFrame(uint8_t port) {
   // reading Sensorvalues of Watermarksensors
   getWatermarkValues();
 
-  // reading GPS
-  getGpsSignal(1000);
-  Serial.println(lat);
-  Serial.println(lng);
+  // Call the method to get GPS signal
+  if (getGPSSignal()) {
+    Serial.println("Valid GPS signal found!");
+    Serial.print("Latitude: ");
+    Serial.println(latitude, 6);
+    Serial.print("Longitude: ");
+    Serial.println(longitude, 6);
+    Serial.print("Time taken: ");
+    Serial.print(timeTaken / 1000);  // Convert milliseconds to seconds
+    Serial.println(" seconds");
+  } else {
+    Serial.println("Failed to get valid GPS signal.");
+  }
+  long lat = latitude * 1000000;  // 37.7749 → 37774900
+  long lng = longitude * 1000000;
   
-  appDataSize = 26;
+  appDataSize = 30;
 
   appData[0] = (int)WM1_Resistance >> 8;
   appData[1] = (int)WM1_Resistance;
@@ -273,6 +324,11 @@ static void prepareTxFrame(uint8_t port) {
 
   appData[24] = (int) castedSMT100MoistData >> 8;
   appData[25] = (int) castedSMT100MoistData;
+
+  appData[26] = (timeTaken >> 24) & 0xFF;  // Most significant byte
+  appData[27] = (timeTaken >> 16) & 0xFF;
+  appData[28] = (timeTaken >> 8) & 0xFF;
+  appData[29] = timeTaken & 0xFF;
 }
 
 /* Read ADC and get resistance of sensor */
