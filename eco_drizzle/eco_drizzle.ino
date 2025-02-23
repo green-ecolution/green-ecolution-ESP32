@@ -4,6 +4,7 @@
 #include "helpers.h"
 #include "gps.h"
 #include "smt100.h"
+#include "battery.h"
 
 // connections are symmetric
 #define SMT100RXD 48  // Connected to RX pin of RS485 module
@@ -66,6 +67,7 @@ void setup() {
   Serial.print("Device Name: ");
   Serial.println(deviceName);
 
+  initBattery();
   initSMT100(SMT100RXD, SMT100TXD);
   initGPS(GPSRXD, GPSTXD);
 
@@ -148,13 +150,7 @@ void prepareTxFrame(uint8_t port) {
 
   getGPSSignal(latitude, longitude, timeTaken);
 
-  // read the analog / millivolts value for pin 1:
-  int analogValue = analogRead(1);
-  int analogVolts = analogReadMilliVolts(1);
-  float voltage = (analogValue * 3.3) / 4095;  // Convert to voltage
-  Serial.printf("ADC analog value = %d\n",analogValue);
-  Serial.printf("ADC millivolts value = %d\n",analogVolts);
-  Serial.printf("calculated volts value = %d\n",voltage);
+  float batteryVoltage = readBatteryVoltage();
 
   // Prepare the payload
   appDataSize = 0;
@@ -165,6 +161,7 @@ void prepareTxFrame(uint8_t port) {
   addFloatToPayload(appData, appDataSize, latitude, scaleFactor);   // Scaled
   addFloatToPayload(appData, appDataSize, longitude, scaleFactor);  // Scaled
   addLongToPayload(appData, appDataSize, timeTaken);
+  addFloatToPayload(appData, appDataSize, batteryVoltage, scaleFactor);
 
   Serial.println("Payload prepared with temp, watercontent, lat, lng.");
   Serial.println("Turn OFF Vext");
