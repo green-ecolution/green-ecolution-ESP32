@@ -5,6 +5,7 @@
 #include "gps.h"
 #include "smt100.h"
 #include "battery.h"
+#include "watermark.h"
 
 // connections are symmetric
 #define SMT100RXD 48  // Connected to RX pin of RS485 module
@@ -58,6 +59,8 @@ const float defaultWaterContent = 50.0;
 float temperature = defaultTempC;
 float waterContent = defaultWaterContent;
 
+float WM1_Resistance, WM2_Resistance, WM3_Resistance;
+int WM1_CB, WM2_CB, WM3_CB;
 
 void setup() {
   Serial.begin(115200);
@@ -70,6 +73,7 @@ void setup() {
   initBattery();
   initSMT100(SMT100RXD, SMT100TXD);
   initGPS(GPSRXD, GPSTXD);
+  initWatermark();
 
   Serial.println("Setup complete. Starting LoRaWAN state machine...");
 }
@@ -152,6 +156,9 @@ void prepareTxFrame(uint8_t port) {
 
   float batteryVoltage = readBatteryVoltage();
 
+  // Read and process Watermark sensor values
+  getWatermarkValues(WM1_Resistance, WM2_Resistance, WM3_Resistance, WM1_CB, WM2_CB, WM3_CB);
+
   // Prepare the payload
   appDataSize = 0;
 
@@ -163,7 +170,14 @@ void prepareTxFrame(uint8_t port) {
   addLongToPayload(appData, appDataSize, timeTaken);
   addFloatToPayload(appData, appDataSize, batteryVoltage, scaleFactor);
 
-  Serial.println("Payload prepared with temp, watercontent, lat, lng.");
+  addIntToPayload(appData, appDataSize, (int)WM1_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM1_CB));
+  addIntToPayload(appData, appDataSize, (int)WM2_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM2_CB));
+  addIntToPayload(appData, appDataSize, (int)WM3_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM3_CB));
+
+  Serial.println("Payload prepared");
   Serial.println("Turn OFF Vext");
   Heltec.VextOFF();
 }

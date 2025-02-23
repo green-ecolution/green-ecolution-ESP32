@@ -1,5 +1,5 @@
 function decodeUplink(input) {
-  //payloard length = 24 bytes
+  //payloard length = 36 bytes
   //payload order:
   // 1. float temp 4bytes
   // 2. uint32 waterContent (scaled float) 4bytes
@@ -7,6 +7,12 @@ function decodeUplink(input) {
   // 4. unit32 lng (scaled float) 4btytes
   // 5. uint32 timeTaken 4bytes
   // 6. uint32 vBat (scaled float) 4bytes
+  // 7. uint16 WM1_Resistance 2bytes
+  // 8. uint16 WM1_CB 2bytes
+  // 9. uint16 WM2_Resistance 2bytes
+  // 10. uint16 WM2_CB 2bytes
+  // 11. uint16 WM3_Resistance 2bytes
+  // 12. uint16 WM3_CB 2bytes
 
   const bytes = input.bytes;
   let offset = 0;
@@ -33,6 +39,21 @@ function decodeUplink(input) {
   const vBat = scaledVBat / scalingFactor;
   offset += 4;
 
+  // Decode Watermark sensor resistances and CB values (all 2-byte uint16)
+  const WM1_Resistance = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
+  const WM1_CB = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
+
+  const WM2_Resistance = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
+  const WM2_CB = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
+
+  const WM3_Resistance = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
+  const WM3_CB = (bytes[offset] << 8) | bytes[offset + 1];  // 2 bytes
+  offset += 2;
 
   return {
     data: {
@@ -42,6 +63,12 @@ function decodeUplink(input) {
       longitude: lng,
       timeTaken: timeTaken,
       batteryVoltage: vBat,
+      WM1_Resistance: WM1_Resistance,
+      WM1_CB: WM1_CB,
+      WM2_Resistance: WM2_Resistance,
+      WM2_CB: WM2_CB,
+      WM3_Resistance: WM3_Resistance,
+      WM3_CB: WM3_CB,
     },
   };
 }
