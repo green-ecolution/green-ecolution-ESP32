@@ -3,7 +3,13 @@
 #include "secrets.h"
 #include "helpers.h"
 #include "gps.h"
+#include "smt100.h"
 
+// connections are symmetric
+#define SMT100RXD 48  // Connected to RX pin of RS485 module
+#define SMT100TXD 47  // Connected to TX pin of RS485 module
+
+// connections are crossed
 #define GPSTXD 33  // Connected to RX pin of GPS module
 #define GPSRXD 34  // Connected to TX pin of GPS module
 
@@ -45,6 +51,12 @@ float latitude = 0.0;
 float longitude = 0.0;
 uint32_t timeTaken = 0;
 
+// Default values
+const float defaultTempC = 25.0;
+const float defaultWaterContent = 50.0;
+float temperature = defaultTempC;
+float waterContent = defaultWaterContent;
+
 
 void setup() {
   Serial.begin(115200);
@@ -53,8 +65,8 @@ void setup() {
   // Print the device name to the Serial Monitor
   Serial.print("Device Name: ");
   Serial.println(deviceName);
-  // Initialize RS485 communication for SMT100 sensor
-  Serial1.begin(9600);
+
+  initSMT100(SMT100RXD, SMT100TXD);
   initGPS(GPSRXD, GPSTXD);
 
   Serial.println("Setup complete. Starting LoRaWAN state machine...");
@@ -118,16 +130,37 @@ void prepareTxFrame(uint8_t port) {
   Heltec.VextON();
   delay(500);  // maybe unnecessary
 
-  float temp = 25.5;
-  float waterContent = 33.3;
+  // Get temperature from SMT100
+  if (getSMT100Temperature(temperature)) {
+    Serial.print("Temperature: ");
+    Serial.println(temperature);
+  } else {
+    Serial.println("Failed to read temperature. Using default value.");
+  }
+
+  // Get moisture from SMT100
+  if (getSMT100MWaterContent(waterContent)) {
+    Serial.print("Water Content: ");
+    Serial.println(waterContent);
+  } else {
+    Serial.println("Failed to read moisture. Using default value.");
+  }
 
   getGPSSignal(latitude, longitude, timeTaken);
+
+  // read the analog / millivolts value for pin 1:
+  int analogValue = analogRead(1);
+  int analogVolts = analogReadMilliVolts(1);
+  float voltage = (analogValue * 3.3) / 4095;  // Convert to voltage
+  Serial.printf("ADC analog value = %d\n",analogValue);
+  Serial.printf("ADC millivolts value = %d\n",analogVolts);
+  Serial.printf("calculated volts value = %d\n",voltage);
 
   // Prepare the payload
   appDataSize = 0;
 
   // Add floats to the payload
-  addFloatToPayload(appData, appDataSize, temp);  // No scaling
+  addFloatToPayload(appData, appDataSize, temperature);  // No scaling
   addFloatToPayload(appData, appDataSize, waterContent, scaleFactor);
   addFloatToPayload(appData, appDataSize, latitude, scaleFactor);   // Scaled
   addFloatToPayload(appData, appDataSize, longitude, scaleFactor);  // Scaled

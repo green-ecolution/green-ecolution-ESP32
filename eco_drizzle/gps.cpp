@@ -1,4 +1,3 @@
-#include <sys/_stdint.h>
 #include "gps.h"
 
 // Initialize the GPS object
