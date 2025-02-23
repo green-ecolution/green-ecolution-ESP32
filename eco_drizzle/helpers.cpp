@@ -28,3 +28,9 @@ void addLongToPayload(uint8_t* appData, uint8_t& appDataSize, uint32_t value) {
     appData[appDataSize++] = (value >> (8 * (3 - i))) & 0xFF;
   }
 }
+
+
+void addIntToPayload(uint8_t* appData, uint8_t& appDataSize, uint16_t value) {
+  appData[appDataSize++] = (value >> 8) & 0xFF;  // High byte
+  appData[appDataSize++] = value & 0xFF;         // Low byte
+}
