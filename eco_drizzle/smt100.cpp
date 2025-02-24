@@ -21,7 +21,7 @@ bool getSMT100Temperature(float& temperature) {
   Serial1.print("GetTemperature!000000\r\n");
 
   // Wait for a response (adjust delay based on sensor response time)
-  delay(100);
+  delay(200);
 
   // Check if data is available
   if (Serial1.available()) {
@@ -40,11 +40,13 @@ bool getSMT100MWaterContent(float& waterContent) {
   Serial1.print("GetWaterContent!000000\r\n");
 
   // Wait for a response (adjust delay based on sensor response time)
-  delay(100);
+  delay(500);
 
   // Check if data is available
   if (Serial1.available()) {
-    String response = Serial1.readStringUntil('\n');           // Read response until newline
+    String response = Serial1.readStringUntil('\n');  // Read response until newline
+    //Serial.print("water content response:");
+    //Serial.println(response);
     String cleanedStr = removeNonNumericCharacters(response);  // Clean the response
     waterContent = cleanedStr.toFloat();                       // Convert to float
     return true;                                               // Success

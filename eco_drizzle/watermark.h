@@ -13,20 +13,19 @@
 
 
 
-const int Rx = 10000;           // fixed resistor attached in series to the sensor and ground...the same value repeated for all WM and Temp Sensor.
-const long default_TempC = 10;  // right now fixed, but can be changed, if temperaturesensor is connected
+const int Rx = 10000;  // fixed resistor attached in series to the sensor and ground...the same value repeated for all WM and Temp Sensor.
 const long default_Mositure = 50;
 const long open_resistance = 35000;  // check the open resistance value by replacing sensor with an open and replace the value here...this value might vary slightly with circuit components
 const long short_resistance = 200;   // similarly check short resistance by shorting the sensor terminals and replace the value here.
 const long short_CB = 240, open_CB = 255;
-const int SupplyV = 3.3;    // Assuming 5V output for SupplyV, this can be measured and replaced with an exact value if required
-const float cFactor = 1.1;  // correction factor optional for adjusting curves. Traditionally IRROMETER devices used a different reading method, voltage divider circuits often require this adjustment to match exactly.
-const int num_of_read = 1;  // number of iterations, each is actually two reads of the sensor (both directions)
+const int SupplyV = 5.0;     // Assuming 5V output for SupplyV, this can be measured and replaced with an exact value if required
+const float cFactor = 1.1;   // correction factor optional for adjusting curves. Traditionally IRROMETER devices used a different reading method, voltage divider circuits often require this adjustment to match exactly.
+const int num_of_read = 10;  // number of iterations, each is actually two reads of the sensor (both directions)
 
 // Function declarations
-void initWatermark();                                                                                                                 // Initialize the Watermark sensor setup
-void getWatermarkValues(float& WM1_Resistance, float& WM2_Resistance, float& WM3_Resistance, int& WM1_CB, int& WM2_CB, int& WM3_CB);  // Read and process Watermark sensor values
-float readWMsensor();                                                                                                                 // Read the resistance of a Watermark sensor
-int myCBvalue(int res, float TC, float cF);                                                                                           // Convert resistance to centibars/kPa
+void initWatermark();                                                                                                                                    // Initialize the Watermark sensor setup
+void getWatermarkValues(float temperature, float& WM1_Resistance, float& WM2_Resistance, float& WM3_Resistance, int& WM1_CB, int& WM2_CB, int& WM3_CB);  // Read and process Watermark sensor values
+float readWMsensor();                                                                                                                                    // Read the resistance of a Watermark sensor
+int myCBvalue(int res, float TC, float cF);                                                                                                              // Convert resistance to centibars/kPa
 
 #endif

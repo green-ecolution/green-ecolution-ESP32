@@ -8,8 +8,8 @@
 #include "watermark.h"
 
 // connections are symmetric
-#define SMT100RXD 48  // Connected to RX pin of RS485 module
-#define SMT100TXD 47  // Connected to TX pin of RS485 module
+#define SMT100RXD 47  // Connected to RX pin of RS485 module
+#define SMT100TXD 48  // Connected to TX pin of RS485 module
 
 // connections are crossed
 #define GPSTXD 33  // Connected to RX pin of GPS module
@@ -31,7 +31,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /* Application data transmission duty cycle in milliseconds */
-uint32_t appTxDutyCycle = 15000;
+uint32_t appTxDutyCycle = 10 * 60 * 1000;  //10 minutes
 
 /* OTAA or ABP */
 bool overTheAirActivation = true;
@@ -54,8 +54,8 @@ float longitude = 0.0;
 uint32_t timeTaken = 0;
 
 // Default values
-const float defaultTempC = 25.0;
-const float defaultWaterContent = 50.0;
+const float defaultTempC = 111.0;
+const float defaultWaterContent = 112.0;
 float temperature = defaultTempC;
 float waterContent = defaultWaterContent;
 
@@ -136,28 +136,18 @@ void prepareTxFrame(uint8_t port) {
   Heltec.VextON();
   delay(500);  // maybe unnecessary
 
-  // Get temperature from SMT100
-  if (getSMT100Temperature(temperature)) {
-    Serial.print("Temperature: ");
-    Serial.println(temperature);
-  } else {
-    Serial.println("Failed to read temperature. Using default value.");
-  }
+  // Get temperature in Celsius from SMT100
+  getSMT100Temperature(temperature) ? Serial.println("SMT100 Temperature okay") : Serial.println("SMT100 Temperature failed");
 
-  // Get moisture from SMT100
-  if (getSMT100MWaterContent(waterContent)) {
-    Serial.print("Water Content: ");
-    Serial.println(waterContent);
-  } else {
-    Serial.println("Failed to read moisture. Using default value.");
-  }
+  // Get soil water content percentage from SMT100
+  getSMT100MWaterContent(waterContent) ? Serial.println("SMT100 Water Content okay") : Serial.println("SMT100 Water Content failed");
 
-  getGPSSignal(latitude, longitude, timeTaken);
+  getGPSSignal(latitude, longitude, timeTaken) ? Serial.println("GPS okay") : Serial.println("GPS failed");
 
   float batteryVoltage = readBatteryVoltage();
 
   // Read and process Watermark sensor values
-  getWatermarkValues(WM1_Resistance, WM2_Resistance, WM3_Resistance, WM1_CB, WM2_CB, WM3_CB);
+  getWatermarkValues(temperature, WM1_Resistance, WM2_Resistance, WM3_Resistance, WM1_CB, WM2_CB, WM3_CB);
 
   // Prepare the payload
   appDataSize = 0;
@@ -176,6 +166,9 @@ void prepareTxFrame(uint8_t port) {
   addIntToPayload(appData, appDataSize, abs(WM2_CB));
   addIntToPayload(appData, appDataSize, (int)WM3_Resistance);
   addIntToPayload(appData, appDataSize, abs(WM3_CB));
+
+  // Add the device name with its length
+  addCharArrayWithLengthToPayload(appData, appDataSize, deviceName);
 
   Serial.println("Payload prepared");
   Serial.println("Turn OFF Vext");
