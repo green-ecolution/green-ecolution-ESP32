@@ -8,12 +8,12 @@ function decodeUplink(input) {
   // 4. unit32 lng (scaled float) 4btytes
   // 5. uint32 timeTaken 4bytes
   // 6. uint32 vBat (scaled float) 4bytes
-  // 7. uint16 WM1_Resistance 2bytes
-  // 8. uint16 WM1_CB 2bytes
-  // 9. uint16 WM2_Resistance 2bytes
-  // 10. uint16 WM2_CB 2bytes
-  // 11. uint16 WM3_Resistance 2bytes
-  // 12. uint16 WM3_CB 2bytes
+  // 7. uint16 WM30_Resistance 2bytes
+  // 8. uint16 WM30_CB 2bytes
+  // 9. uint16 WM60_Resistance 2bytes
+  // 10. uint16 WM60_CB 2bytes
+  // 11. uint16 WM90_Resistance 2bytes
+  // 12. uint16 WM90_CB 2bytes
   // 13 Device Name Length (1 byte, uint8)
   // 14 Device Name (N bytes, string)
 
@@ -43,19 +43,19 @@ function decodeUplink(input) {
   offset += 4;
 
   // Decode Watermark sensor resistances and CB values (all 2-byte uint16)
-  const WM1_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
+  const WM30_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
   offset += 2;
-  const WM1_CB = (bytes[offset] << 8) | bytes[offset + 1];
-  offset += 2;
-
-  const WM2_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
-  offset += 2;
-  const WM2_CB = (bytes[offset] << 8) | bytes[offset + 1];
+  const WM30_CB = (bytes[offset] << 8) | bytes[offset + 1];
   offset += 2;
 
-  const WM3_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
+  const WM60_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
   offset += 2;
-  const WM3_CB = (bytes[offset] << 8) | bytes[offset + 1];
+  const WM60_CB = (bytes[offset] << 8) | bytes[offset + 1];
+  offset += 2;
+
+  const WM90_Resistance = (bytes[offset] << 8) | bytes[offset + 1];
+  offset += 2;
+  const WM90_CB = (bytes[offset] << 8) | bytes[offset + 1];
   offset += 2;
 
   // Decode the device name
@@ -74,12 +74,12 @@ function decodeUplink(input) {
       longitude: lng,
       timeTaken: timeTaken,
       batteryVoltage: vBat,
-      WM1_Resistance: WM1_Resistance,
-      WM1_CB: WM1_CB,
-      WM2_Resistance: WM2_Resistance,
-      WM2_CB: WM2_CB,
-      WM3_Resistance: WM3_Resistance,
-      WM3_CB: WM3_CB,
+      WM30_Resistance: WM30_Resistance,
+      WM30_CB: WM30_CB,
+      WM60_Resistance: WM60_Resistance,
+      WM60_CB: WM60_CB,
+      WM90_Resistance: WM90_Resistance,
+      WM90_CB: WM90_CB,
       deviceName: deviceName,
     },
   };
