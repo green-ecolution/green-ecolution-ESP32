@@ -11,8 +11,8 @@ String removeNonNumericCharacters(String str) {
   return result;
 }
 // Initialize Serial1 for SMT100 communication
-void initSMT100(int rxPin, int txPin) {
-  Serial1.begin(9600, SERIAL_8N1, rxPin, txPin);  // Initialize Serial1 with custom pins
+void initSMT100() {
+  Serial1.begin(9600, SERIAL_8N1, SMT100RXD, SMT100TXD);  // Initialize Serial1 with custom pins
 }
 
 // Get temperature from SMT100

@@ -7,14 +7,6 @@
 #include "battery.h"
 #include "watermark.h"
 
-// connections are symmetric
-#define SMT100RXD 47  // Connected to RX pin of RS485 module
-#define SMT100TXD 48  // Connected to TX pin of RS485 module
-
-// connections are crossed
-#define GPSTXD 33  // Connected to RX pin of GPS module
-#define GPSRXD 34  // Connected to TX pin of GPS module
-
 /* OTAA parameters are inside secrets.h */
 
 /* ABP para need to be kept */
@@ -31,7 +23,7 @@ LoRaMacRegion_t loraWanRegion = ACTIVE_REGION;
 DeviceClass_t loraWanClass = CLASS_A;
 
 /* Application data transmission duty cycle in milliseconds */
-uint32_t appTxDutyCycle = 10 * 60 * 1000;  //10 minutes
+uint32_t appTxDutyCycle = 6 * 60 * 60 * 1000;  //6 hours <- hours*minutes*seconds*milliseconds
 
 /* OTAA or ABP */
 bool overTheAirActivation = true;
@@ -59,8 +51,8 @@ const float defaultWaterContent = 112.0;
 float temperature = defaultTempC;
 float waterContent = defaultWaterContent;
 
-float WM1_Resistance, WM2_Resistance, WM3_Resistance;
-int WM1_CB, WM2_CB, WM3_CB;
+float WM_30_Resistance, WM_60_Resistance, WM_90_Resistance;
+int WM_30_CB, WM_60_CB, WM_90_CB;
 
 void setup() {
   Serial.begin(115200);
@@ -69,10 +61,12 @@ void setup() {
   // Print the device name to the Serial Monitor
   Serial.print("Device Name: ");
   Serial.println(deviceName);
+  Serial.print("Sending frequency in ms: ");
+  Serial.println(appTxDutyCycle);
 
   initBattery();
-  initSMT100(SMT100RXD, SMT100TXD);
-  initGPS(GPSRXD, GPSTXD);
+  initSMT100();
+  initGPS();
   initWatermark();
 
   Serial.println("Setup complete. Starting LoRaWAN state machine...");
@@ -147,7 +141,7 @@ void prepareTxFrame(uint8_t port) {
   float batteryVoltage = readBatteryVoltage();
 
   // Read and process Watermark sensor values
-  getWatermarkValues(temperature, WM1_Resistance, WM2_Resistance, WM3_Resistance, WM1_CB, WM2_CB, WM3_CB);
+  getWatermarkValues(temperature, WM_30_Resistance, WM_60_Resistance, WM_90_Resistance, WM_30_CB, WM_60_CB, WM_90_CB);
 
   // Prepare the payload
   appDataSize = 0;
@@ -160,12 +154,12 @@ void prepareTxFrame(uint8_t port) {
   addLongToPayload(appData, appDataSize, timeTaken);
   addFloatToPayload(appData, appDataSize, batteryVoltage, scaleFactor);
 
-  addIntToPayload(appData, appDataSize, (int)WM1_Resistance);
-  addIntToPayload(appData, appDataSize, abs(WM1_CB));
-  addIntToPayload(appData, appDataSize, (int)WM2_Resistance);
-  addIntToPayload(appData, appDataSize, abs(WM2_CB));
-  addIntToPayload(appData, appDataSize, (int)WM3_Resistance);
-  addIntToPayload(appData, appDataSize, abs(WM3_CB));
+  addIntToPayload(appData, appDataSize, (int)WM_30_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM_30_CB));
+  addIntToPayload(appData, appDataSize, (int)WM_60_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM_60_CB));
+  addIntToPayload(appData, appDataSize, (int)WM_90_Resistance);
+  addIntToPayload(appData, appDataSize, abs(WM_90_CB));
 
   // Add the device name with its length
   addCharArrayWithLengthToPayload(appData, appDataSize, deviceName);

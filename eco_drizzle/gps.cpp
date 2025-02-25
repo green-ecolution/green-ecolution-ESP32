@@ -4,8 +4,8 @@
 TinyGPSPlus gps;
 
 // Initialize GPS module with specified RX and TX pins
-void initGPS(int rxPin, int txPin) {
-  Serial2.begin(GPSBaud, SERIAL_8N1, rxPin, txPin);  // Initialize Serial2 with custom pins
+void initGPS() {
+  Serial2.begin(GPSBaud, SERIAL_8N1, GPSRXD, GPSTXD);  // Initialize Serial2 with custom pins
 }
 
 // Get GPS signal

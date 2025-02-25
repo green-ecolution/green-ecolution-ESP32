@@ -14,8 +14,8 @@ function decodeUplink(input) {
   // 10. uint16 WM60_CB 2bytes
   // 11. uint16 WM90_Resistance 2bytes
   // 12. uint16 WM90_CB 2bytes
-  // 13 Device Name Length (1 byte, uint8)
-  // 14 Device Name (N bytes, string)
+  // 13. Device Name Length (1 byte, uint8)
+  // 14. Device Name (N bytes, string)
 
   const bytes = input.bytes;
   let offset = 0;

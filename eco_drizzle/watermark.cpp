@@ -14,41 +14,40 @@ void initWatermark() {
   digitalWrite(Mux, HIGH);
 }
 
-// Read and process Watermark sensor values
-void getWatermarkValues(float temperature, float& WM1_Resistance, float& WM2_Resistance, float& WM3_Resistance, int& WM1_CB, int& WM2_CB, int& WM3_CB) {
-  //Serial.print("Watermark correction temperature: ");
-  //Serial.println(temperature);
+void setMuxPins(const uint8_t sensorConfig[]) {
+  digitalWrite(S1, sensorConfig[0]);  // Set S0
+  digitalWrite(S0, sensorConfig[1]);  // Set S1
+}
+
+void getWatermarkValues(float temperature, float& WM_30_Resistance, float& WM_60_Resistance, float& WM_90_Resistance, int& WM_30_CB, int& WM_60_CB, int& WM_90_CB) {
   // Enable the MUX
   digitalWrite(Mux, LOW);
 
-  // Read the first Watermark sensor
-  delay(100);  // Wait for stabilization
-  digitalWrite(S0, LOW);
-  digitalWrite(S1, HIGH);
-  delay(10);  // Wait for MUX
-  WM1_Resistance = readWMsensor();
+  // Read the WM_30 sensor
+  delay(100);         // Wait for stabilization
+  setMuxPins(WM_30);  // Set MUX pins for WM_30
+  delay(10);          // Wait for MUX
+  WM_30_Resistance = readWMsensor();
 
-  // Read the second Watermark sensor
-  delay(100);  // Wait for stabilization
-  digitalWrite(S0, HIGH);
-  digitalWrite(S1, LOW);
-  delay(10);  // Wait for MUX
-  WM2_Resistance = readWMsensor();
+  // Read the WM_60 sensor
+  delay(100);         // Wait for stabilization
+  setMuxPins(WM_60);  // Set MUX pins for WM_60
+  delay(10);          // Wait for MUX
+  WM_60_Resistance = readWMsensor();
 
-  // Read the third Watermark sensor
-  delay(100);  // Wait for stabilization
-  digitalWrite(S0, LOW);
-  digitalWrite(S1, LOW);
-  delay(10);  // Wait for MUX
-  WM3_Resistance = readWMsensor();
+  // Read the WM_90 sensor
+  delay(100);         // Wait for stabilization
+  setMuxPins(WM_90);  // Set MUX pins for WM_90
+  delay(10);          // Wait for MUX
+  WM_90_Resistance = readWMsensor();
 
   // Disable the MUX
   digitalWrite(Mux, HIGH);
 
   // Convert resistance to centibars/kPa
-  WM1_CB = myCBvalue(WM1_Resistance, temperature, cFactor);
-  WM2_CB = myCBvalue(WM2_Resistance, temperature, cFactor);
-  WM3_CB = myCBvalue(WM3_Resistance, temperature, cFactor);
+  WM_30_CB = myCBvalue(WM_30_Resistance, temperature, cFactor);
+  WM_60_CB = myCBvalue(WM_60_Resistance, temperature, cFactor);
+  WM_90_CB = myCBvalue(WM_90_Resistance, temperature, cFactor);
 }
 
 // Read the resistance of a Watermark sensor
@@ -71,25 +70,16 @@ float readWMsensor() {
     int rawValue2 = analogRead(Sense);
     ARead_A2 += rawValue2;
     digitalWrite(Sensor2, LOW);
-
-    // Debug: Print raw analog values
-    //Serial.printf("Raw A1: %d, Raw A2: %d\n", rawValue1, rawValue2);
   }
 
   // Calculate average voltage
   float SenVWM1 = ((ARead_A1 / 4096.0) * SupplyV) / num_of_read;
   float SenVWM2 = ((ARead_A2 / 4096.0) * SupplyV) / num_of_read;
 
-  // Debug: Print intermediate voltages
-  //Serial.printf("SenVWM1: %.2f V, SenVWM2: %.2f V\n", SenVWM1, SenVWM2);
-
   // Calculate resistance
   float WM_ResistanceA = (Rx * (SupplyV - SenVWM1)) / SenVWM1;
   float WM_ResistanceB = (Rx * SenVWM2) / (SupplyV - SenVWM2);
   float WM_Resistance = (WM_ResistanceA + WM_ResistanceB) / 2.0;
-
-  // Debug: Print calculated resistances
-  //Serial.printf("WM_ResistanceA: %.2f Ohms, WM_ResistanceB: %.2f Ohms, WM_Resistance: %.2f Ohms\n", WM_ResistanceA, WM_ResistanceB, WM_Resistance);
 
   return WM_Resistance;
 }

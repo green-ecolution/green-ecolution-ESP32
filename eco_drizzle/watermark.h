@@ -11,7 +11,10 @@
 #define Mux 7      // MUX enable/disable pin
 #define Sense 3    // Analog input pin for reading sensor values
 
-
+// Sensor tuples (S0, S1)
+const uint8_t WM_30[] = { LOW, HIGH };  // S1 = LOW, S0 = HIGH // W1
+const uint8_t WM_60[] = { HIGH, LOW };  // S1 = HIGH, S0 = LOW // W2
+const uint8_t WM_90[] = { LOW, LOW };   // S1 = LOW, S0 = LOW // W3
 
 const int Rx = 10000;  // fixed resistor attached in series to the sensor and ground...the same value repeated for all WM and Temp Sensor.
 const long default_Mositure = 50;
@@ -23,9 +26,9 @@ const float cFactor = 1.1;   // correction factor optional for adjusting curves.
 const int num_of_read = 10;  // number of iterations, each is actually two reads of the sensor (both directions)
 
 // Function declarations
-void initWatermark();                                                                                                                                    // Initialize the Watermark sensor setup
-void getWatermarkValues(float temperature, float& WM1_Resistance, float& WM2_Resistance, float& WM3_Resistance, int& WM1_CB, int& WM2_CB, int& WM3_CB);  // Read and process Watermark sensor values
-float readWMsensor();                                                                                                                                    // Read the resistance of a Watermark sensor
-int myCBvalue(int res, float TC, float cF);                                                                                                              // Convert resistance to centibars/kPa
-
+void initWatermark();                                                                                                                                                // Initialize the Watermark sensor setup
+void getWatermarkValues(float temperature, float& WM_30_Resistance, float& WM_60_Resistance, float& WM_90_Resistance, int& WM_30_CB, int& WM_60_CB, int& WM_90_CB);  // Read and process Watermark sensor values
+float readWMsensor();                                                                                                                                                // Read the resistance of a Watermark sensor
+int myCBvalue(int res, float TC, float cF);                                                                                                                          // Convert resistance to centibars/kPa
+void setMuxPins(const uint8_t sensorConfig[]);
 #endif
