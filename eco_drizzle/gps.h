@@ -8,8 +8,8 @@
 #define GPSTXD 33  // Connected to RX pin of GPS module
 #define GPSRXD 34  // Connected to TX pin of GPS module
 // Constants
-const unsigned long GPS_DATA_TIMEOUT = 10 * 1000;     // 10 seconds
-const unsigned long GPS_FIX_TIMEOUT = 5 * 60 * 1000;  // 5 minutes
+const unsigned long GPS_DATA_TIMEOUT = 3 * 1000;      // 3 seconds
+const unsigned long GPS_FIX_TIMEOUT = 3 * 60 * 1000;  // 3 minutes
 const unsigned long GPS_CHECK_INTERVAL = 200;         // 200 ms
 const uint32_t GPSBaud = 9600;
 

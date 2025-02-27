@@ -40,6 +40,9 @@ uint8_t confirmedNbTrials = 4;
 
 const uint32_t scaleFactor = 1000000;  // used for float scaling, keeps 6 decimal places
 
+// Battery voltage threshold
+const float BATTERY_LOW_THRESHOLD = 3.3;
+
 // Variables to store GPS data
 float latitude = 0.0;
 float longitude = 0.0;
@@ -54,8 +57,11 @@ float waterContent = defaultWaterContent;
 float WM_30_Resistance, WM_60_Resistance, WM_90_Resistance;
 int WM_30_CB, WM_60_CB, WM_90_CB;
 
+float batteryVoltage;
+
 void setup() {
   Serial.begin(115200);
+
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
 
   // Print the device name to the Serial Monitor
@@ -97,9 +103,21 @@ void loop() {
     case DEVICE_STATE_SEND:
       {
         Serial.println("State: DEVICE_STATE_SEND - Preparing and sending data...");
-        prepareTxFrame(appPort);
-        LoRaWAN.send();
-        deviceState = DEVICE_STATE_CYCLE;  // Move to the CYCLE state
+
+        batteryVoltage = readBatteryVoltage();
+        if (batteryVoltage < BATTERY_LOW_THRESHOLD) {
+          // Battery is low, send a low battery message
+          prepareLowBatteryTxFrame(appPort);
+          Serial.println("Battery voltage is too low! Sending final message and entering deep sleep...");
+          LoRaWAN.send();
+          delay(1000);
+          deviceState = DEVICE_STATE_SLEEP;
+        } else {
+          // Battery is okay, send normal data
+          prepareTxFrame(appPort);
+          LoRaWAN.send();
+          deviceState = DEVICE_STATE_CYCLE;
+        }
         break;
       }
     case DEVICE_STATE_CYCLE:
@@ -138,13 +156,14 @@ void prepareTxFrame(uint8_t port) {
 
   getGPSSignal(latitude, longitude, timeTaken) ? Serial.println("GPS okay") : Serial.println("GPS failed");
 
-  float batteryVoltage = readBatteryVoltage();
-
   // Read and process Watermark sensor values
   getWatermarkValues(temperature, WM_30_Resistance, WM_60_Resistance, WM_90_Resistance, WM_30_CB, WM_60_CB, WM_90_CB);
 
   // Prepare the payload
   appDataSize = 0;
+
+  // Add status byte (0 = normal message)
+  appData[appDataSize++] = 0;
 
   // Add floats to the payload
   addFloatToPayload(appData, appDataSize, temperature);  // No scaling
@@ -167,4 +186,19 @@ void prepareTxFrame(uint8_t port) {
   Serial.println("Payload prepared");
   Serial.println("Turn OFF Vext");
   Heltec.VextOFF();
+}
+void prepareLowBatteryTxFrame(uint8_t port) {
+  // Prepare the payload
+  appDataSize = 0;
+
+  // Add status byte (1 = low battery message)
+  appData[appDataSize++] = 1;
+
+  addCharArrayWithLengthToPayload(appData, appDataSize, deviceName);
+  // Add the "battery too low" message
+  const char* lowBatteryMessage = "battery low, going to sleep";
+  addCharArrayWithLengthToPayload(appData, appDataSize, lowBatteryMessage);
+
+  Serial.println("Low battery payload prepared");
+  Serial.println("Turn OFF Vext");
 }
